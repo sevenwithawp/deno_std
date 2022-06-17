@@ -20,28 +20,24 @@ export interface ConfigOptions {
   defaults?: string;
 }
 
+type LineParseResult = {
+  key: string;
+  quotedValue: string;
+  unQuotedValue: string;
+}
+
 const RE_VariableStart = /^\s*[a-zA-Z_][a-zA-Z_0-9 ]*\s*=/;
-const RE_SingleQuotes = /^'([\s\S]*)'$/;
-const RE_DoubleQuotes = /^"([\s\S]*)"$/;
+const RE_KeyValue = /\s{0,}(?<key>[^\s]+?)\s{0,}=\ {0,}(["'](?<quotedValue>(.|\n){0,})["']|(?<unQuotedValue>[^#]{0,}))/;
 
 export function parse(rawDotenv: string): DotenvConfig {
   const env: DotenvConfig = {};
 
   for (const line of rawDotenv.split("\n")) {
     if (!RE_VariableStart.test(line)) continue;
-    const eqIdx = line.indexOf("=");
-    const key = line.slice(0, eqIdx).trim();
-    let value = line.slice(eqIdx + 1);
-    const hashIdx = value.indexOf("#");
-    if (hashIdx >= 0) value = value.slice(0, hashIdx);
-    value = value.trim();
-    if (RE_SingleQuotes.test(value)) {
-      value = value.slice(1, -1);
-    } else if (RE_DoubleQuotes.test(value)) {
-      value = value.slice(1, -1);
-      value = expandNewlines(value);
-    } else value = value.trim();
-    env[key] = value;
+    
+    const { key: newKey, quotedValue, unQuotedValue } = line.match(RE_KeyValue)?.groups as LineParseResult;
+
+    env[newKey] = quotedValue ? expandNewlines(quotedValue) : unQuotedValue.trim();
   }
 
   return env;
