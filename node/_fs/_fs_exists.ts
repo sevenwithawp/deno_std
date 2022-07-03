@@ -1,7 +1,7 @@
 // Copyright 2018-2022 the Deno authors. All rights reserved. MIT license.
 import { fromFileUrl } from "../path.ts";
 
-type ExitsCallback = (exists: boolean) => void;
+type ExitsCallback = (error: Error | null, exists: boolean) => void;
 
 /**
  * TODO: Also accept 'path' parameter as a Node polyfill Buffer type once these
@@ -10,7 +10,15 @@ type ExitsCallback = (exists: boolean) => void;
  */
 export function exists(path: string | URL, callback: ExitsCallback): void {
   path = path instanceof URL ? fromFileUrl(path) : path;
-  Deno.lstat(path).then(() => callback(true), () => callback(false));
+  Deno.lstat(path).then(
+    () => callback(null, true),
+    (err) => {
+      if (err instanceof Deno.errors.NotFound) {
+        callback(null, false);
+      }
+      callback(err, false);
+    },
+  );
 }
 
 /**
